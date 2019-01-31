@@ -11,150 +11,174 @@
 
 namespace CGL {
 
-class DrawRend : public Renderer {
- public:
-  DrawRend(std::vector<SVG*> svgs_):
-  svgs(svgs_), current_svg(0)
-  {}
+    class DrawRend : public Renderer {
+    public:
+        DrawRend(std::vector<SVG *> svgs_) :
+                svgs(svgs_), current_svg(0) {}
 
-  ~DrawRend( void );
+        ~DrawRend(void);
 
-  // inherited Renderer interface functions
-  void init();
-  void render();
-  void resize( size_t w, size_t h );
-  std::string name() { return "Draw"; }
-  std::string info();
-  void cursor_event( float x, float y );
-  void scroll_event( float offset_x, float offset_y );
-  void mouse_event( int key, int event, unsigned char mods );
-  void keyboard_event( int key, int event, unsigned char mods );
+        // inherited Renderer interface functions
+        void init();
 
-  void set_gl(bool gl_) { gl = gl_; }
+        void render();
 
-  // write current pixel buffer to disk
-  void write_screenshot();
+        void resize(size_t w, size_t h);
 
-  // write only framebuffer to disk
-  void write_framebuffer();
+        std::string name() { return "Draw"; }
 
-  // drawing functions
-  void redraw();
-  void draw_pixels();
-  void draw_zoom();
+        std::string info();
 
-  // view transform functions
-  void view_init();
-  void set_view(float x, float y, float span);
-  void move_view(float dx, float dy, float scale);
+        void cursor_event(float x, float y);
 
-  // rasterize a point
-  void rasterize_point( float x, float y, Color color );
+        void scroll_event(float offset_x, float offset_y);
 
-  // rasterize a line
-  void rasterize_line( float x0, float y0,
-                       float x1, float y1,
-                       Color color);
+        void mouse_event(int key, int event, unsigned char mods);
 
-  // rasterize a triangle
-  void rasterize_triangle( float x0, float y0,
-                           float x1, float y1,
-                           float x2, float y2,
-                           Color color, Triangle *tri = NULL );
+        void keyboard_event(int key, int event, unsigned char mods);
+
+        void set_gl(bool gl_) { gl = gl_; }
+
+        // write current pixel buffer to disk
+        void write_screenshot();
+
+        // write only framebuffer to disk
+        void write_framebuffer();
+
+        // drawing functions
+        void redraw();
+
+        void draw_pixels();
+
+        void draw_zoom();
+
+        // view transform functions
+        void view_init();
+
+        void set_view(float x, float y, float span);
+
+        void move_view(float dx, float dy, float scale);
+
+        // rasterize a point
+        void rasterize_point(float x, float y, Color color);
+
+        // rasterize a line
+        void rasterize_line(float x0, float y0,
+                            float x1, float y1,
+                            Color color);
+
+        // rasterize a triangle
+        void rasterize_triangle(float x0, float y0,
+                                float x1, float y1,
+                                float x2, float y2,
+                                Color color, Triangle *tri = NULL);
 
 
+    private:
+        // Global state variables for SVGs, pixels, and view transforms
+        std::vector<SVG *> svgs;
+        size_t current_svg;
+        std::vector<Matrix3x3> svg_to_ndc;
+        float view_x, view_y, view_span;
 
-private:
-  // Global state variables for SVGs, pixels, and view transforms
-  std::vector<SVG*> svgs; size_t current_svg;
-  std::vector<Matrix3x3> svg_to_ndc;
-  float view_x, view_y, view_span;
+        Matrix3x3 ndc_to_screen;
 
-  Matrix3x3 ndc_to_screen;
+        std::vector<unsigned char> framebuffer;
+        size_t width, height;
 
-  std::vector<unsigned char> framebuffer;
-  size_t width, height;
+        // UI state info
+        float cursor_x;
+        float cursor_y;
+        bool left_clicked;
+        int show_zoom;
+        int sample_rate;
 
-  // UI state info
-  float cursor_x; float cursor_y;
-  bool left_clicked;
-  int show_zoom;
-  int sample_rate;
+        PixelSampleMethod psm;
+        LevelSampleMethod lsm;
 
-  PixelSampleMethod psm;
-  LevelSampleMethod lsm;
+        bool gl;
 
-  bool gl;
+        typedef std::vector<unsigned char> PixelColorStorage;
 
-  typedef std::vector<unsigned char> PixelColorStorage;
+        // Intuitively, a sample buffer instance is a pixel,
+        // or (samples_per_side x samples_per_side) sub-pixels.
+        struct SampleBuffer {
+            std::vector<std::vector<PixelColorStorage> > sub_pixels;
+            size_t samples_per_side;
 
-  // Intuitively, a sample buffer instance is a pixel,
-  // or (samples_per_side x samples_per_side) sub-pixels.
-  struct SampleBuffer {
-    std::vector<std::vector<PixelColorStorage> > sub_pixels;
-    size_t samples_per_side;
+            SampleBuffer(size_t sps) : samples_per_side(sps) {
+                clear();
+            }
 
-    SampleBuffer(size_t sps): samples_per_side(sps) {
-      clear();
-    }
-    
-    // Fill the subpixel at i,j with the Color c
-    void fill_color(int i, int j, Color c) {
-      PixelColorStorage &p = sub_pixels[i][j];
-      // Part 1: Overwrite PixelColorStorage p using Color c.
-      //         Pay attention to different data types.
-      return;
-    }
+            // Fill the sub-pixel at i,j with the Color c
+            void fill_color(int i, int j, Color c) {
+                PixelColorStorage &p = sub_pixels[i][j];
+                // Part 1: Overwrite PixelColorStorage p using Color c.
+                //         Pay attention to different data types.
+                p[0] = (uint8_t) (c.r * 255);
+                p[1] = (uint8_t) (c.g * 255);
+                p[2] = (uint8_t) (c.b * 255);
+            }
 
-    void fill_pixel(Color c) {
-      for (int i = 0; i < samples_per_side; ++i)
-        for (int j = 0; j < samples_per_side; ++j)
-          fill_color(i, j, c);
-    }
+            void fill_pixel(Color c) {
+                for (int i = 0; i < samples_per_side; ++i)
+                    for (int j = 0; j < samples_per_side; ++j)
+                        fill_color(i, j, c);
+            }
 
-    Color get_pixel_color() {
-      return Color(sub_pixels[0][0].data());
-      // Part 2: Implement get_pixel_color() for supersampling.
-    }
-    
-    void clear() {
-      if (sub_pixels.size() == samples_per_side) {
-        for (int i = 0; i < samples_per_side; ++i)
-          for (int j = 0; j < samples_per_side; ++j)
-            sub_pixels[i][j].assign(3, (unsigned char)255);
-        return;
-      }
+            Color get_pixel_color() {
+                // Part 2: Implement get_pixel_color() for supersampling.
+                const float samples_per_pixel = samples_per_side * samples_per_side;
+                unsigned int r = 0, g = 0, b = 0;
+                for (int i = 0; i < samples_per_side; i++)
+                    for (int j = 0; j < samples_per_side; j++) {
+                        r += sub_pixels[i][j][0];
+                        g += sub_pixels[i][j][1];
+                        b += sub_pixels[i][j][2];
+                    }
+                return {r / samples_per_pixel / 255.0f,
+                        g / samples_per_pixel / 255.0f,
+                        b / samples_per_pixel / 255.0f};
+            }
 
-      sub_pixels.clear();
-      PixelColorStorage white = std::vector<unsigned char>(3, 255);
-      std::vector<PixelColorStorage> row;
-      row.reserve(samples_per_side);
-      for (int i = 0; i < samples_per_side; ++i)
-        row.push_back(white);
-      sub_pixels.reserve(samples_per_side);
-      for (int i = 0; i < samples_per_side; ++i)
-        sub_pixels.push_back(row);
-    }
-  };
+            void clear() {
+                if (sub_pixels.size() == samples_per_side) {
+                    for (int i = 0; i < samples_per_side; ++i)
+                        for (int j = 0; j < samples_per_side; ++j)
+                            sub_pixels[i][j].assign(3, (unsigned char) 255);
+                    return;
+                }
 
-  std::vector<std::vector<SampleBuffer> > samplebuffer;
+                sub_pixels.clear();
+                PixelColorStorage white = std::vector<unsigned char>(3, 255);
+                std::vector<PixelColorStorage> row;
+                row.reserve(samples_per_side);
+                for (int i = 0; i < samples_per_side; ++i)
+                    row.push_back(white);
+                sub_pixels.reserve(samples_per_side);
+                for (int i = 0; i < samples_per_side; ++i)
+                    sub_pixels.push_back(row);
+            }
+        };
 
-  // This function takes the collected sub-pixel samples and
-  // combines them together to fill in the framebuffer in preparation
-  // for posting pixels to the screen.
-  void resolve() {
-    for (int x = 0; x < width; ++x) {
-      for (int y = 0; y < height; ++y) {
-        Color col = samplebuffer[y][x].get_pixel_color();
-        for (int k = 0; k < 3; ++k) {
-          framebuffer[3 * (y * width + x) + k] = (&col.r)[k] * 255;
+        std::vector<std::vector<SampleBuffer> > samplebuffer;
+
+        // This function takes the collected sub-pixel samples and
+        // combines them together to fill in the framebuffer in preparation
+        // for posting pixels to the screen.
+        void resolve() {
+            for (int x = 0; x < width; ++x) {
+                for (int y = 0; y < height; ++y) {
+                    Color col = samplebuffer[y][x].get_pixel_color();
+                    for (int k = 0; k < 3; ++k) {
+                        framebuffer[3 * (y * width + x) + k] = (&col.r)[k] * 255;
+                    }
+                }
+            }
         }
-      }
-    }
-  }
 
 
-};
+    };
 
 } // namespace CGL
 
