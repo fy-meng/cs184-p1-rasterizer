@@ -7,6 +7,7 @@
 #include "CGL/lodepng.h"
 #include "texture.h"
 #include <ctime>
+
 using namespace std;
 
 namespace CGL {
@@ -515,14 +516,14 @@ namespace CGL {
         }
     }
 
-    float side(float x, float y, float x0, float y0, float x1, float y1) {
+    inline float side(float x, float y, float x0, float y0, float x1, float y1) {
         return (x - x1) * (y0 - y1) - (y - y1) * (x0 - x1);
     }
 
     bool point_in_triangle(float x, float y,
-                           float x0, float y0,
-                           float x1, float y1,
-                           float x2, float y2) {
+                                  float x0, float y0,
+                                  float x1, float y1,
+                                  float x2, float y2) {
         float d0 = side(x, y, x0, y0, x1, y1);
         float d1 = side(x, y, x1, y1, x2, y2);
         float d2 = side(x, y, x2, y2, x0, y0);
@@ -548,8 +549,11 @@ namespace CGL {
         // Part 4: Add barycentric coordinates and use tri->color for shading when available.
         // Part 5: Fill in the SampleParams struct and pass it to the tri->color function.
         // Part 6: Pass in correct barycentric differentials to tri->color for mipmapping.
+        clock_t t = clock();
+
         auto n_sub_pixel = (int) sqrt(sample_rate);
         float sub_pixel_size = 1.0f / n_sub_pixel;
+
         for (int y = 0; y < samplebuffer.size(); y++)
             for (int x = 0; x < samplebuffer[y].size(); x++)
                 for (int j = 0; j < n_sub_pixel; j++)
@@ -558,6 +562,9 @@ namespace CGL {
                         if (point_in_triangle(x + (i + 0.5f) * sub_pixel_size, y + (j + 0.5f) * sub_pixel_size,
                                               x0, y0, x1, y1, x2, y2))
                             samplebuffer[y][x].fill_color(i, j, color);
+
+        t = clock() - t;
+        printf("Time used with %dx%d super-sampling: %fs\n", n_sub_pixel, n_sub_pixel, ((float) t) / CLOCKS_PER_SEC);
     }
 
 
