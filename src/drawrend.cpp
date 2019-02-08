@@ -14,7 +14,6 @@ namespace CGL {
 
     struct SVG;
 
-
     DrawRend::~DrawRend(void) {}
 
     /**
@@ -521,13 +520,21 @@ namespace CGL {
     }
 
     bool point_in_triangle(float x, float y,
-                                  float x0, float y0,
-                                  float x1, float y1,
-                                  float x2, float y2) {
+                           float x0, float y0,
+                           float x1, float y1,
+                           float x2, float y2) {
         float d0 = side(x, y, x0, y0, x1, y1);
         float d1 = side(x, y, x1, y1, x2, y2);
         float d2 = side(x, y, x2, y2, x0, y0);
         return (d0 >= 0 && d1 >= 0 && d2 >= 0) || (d0 <= 0 && d1 <= 0 && d2 <= 0);
+    }
+
+    /**
+     * Returns the barycentric coordinate of point (x, y) w.r.t. vertex
+     * (x0, y0) and side (x1, y1) - (x2, y2).
+     * */
+    inline float bary(float x, float y, float x0, float y0, float x1, float y1, float x2, float y2) {
+        return (-(x - x1) * (y2 - y1) + (y - y1) * (x2 - x1)) / (-(x0 - x1) * (y2 - y1) + (y0 - y1) * (x2 - x1));
     }
 
     // Rasterize a triangle.
@@ -560,8 +567,16 @@ namespace CGL {
                     for (int i = 0; i < n_sub_pixel; i++)
                         // Note that the coordinate of the triangles are (column, row)
                         if (point_in_triangle(x + (i + 0.5f) * sub_pixel_size, y + (j + 0.5f) * sub_pixel_size,
-                                              x0, y0, x1, y1, x2, y2))
+                                              x0, y0, x1, y1, x2, y2)) {
+                            if (tri) {
+                                Vector3D p_bary = Vector3D();
+                                p_bary[0] = bary(x, y, x0, y0, x1, y1, x2, y2);
+                                p_bary[1] = bary(x, y, x1, y1, x2, y2, x0, y0);
+                                p_bary[2] = 1 - p_bary[0] - p_bary[1];
+                                color = tri->color(p_bary, NULL, NULL, SampleParams());
+                            }
                             samplebuffer[y][x].fill_color(i, j, color);
+                        }
 
         t = clock() - t;
         printf("Time used with %dx%d super-sampling: %fs\n", n_sub_pixel, n_sub_pixel, ((float) t) / CLOCKS_PER_SEC);
