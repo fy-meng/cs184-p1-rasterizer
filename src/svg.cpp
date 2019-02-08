@@ -49,7 +49,7 @@ namespace CGL {
      */
     Color ColorTri::color(Vector3D p_bary, Vector3D p_dx_bary, Vector3D p_dy_bary, SampleParams sp) {
         // Part 4: Fill this in.
-        return p_bary[0] * this->p0_col + p_bary[1] * this->p1_col + p_bary[2] * this->p2_col;
+        return p_bary[0] * p0_col + p_bary[1] * p1_col + p_bary[2] * p2_col;
     }
 
     /**
@@ -62,7 +62,8 @@ namespace CGL {
     Color TexTri::color(Vector3D p_bary, Vector3D p_dx_bary, Vector3D p_dy_bary, SampleParams sp) {
         // Part 5: Fill this in with bilinear sampling.
         // Part 6: Fill this in with trilinear sampling as well.
-        return Color();
+        sp.p_uv = p_bary[0] * p0_uv + p_bary[1] * p1_uv + p_bary[2] * p2_uv;
+        return tex->sample(sp);
     }
 
     void Group::draw(DrawRend *dr, Matrix3x3 global_transform) {

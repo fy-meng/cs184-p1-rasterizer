@@ -515,26 +515,19 @@ namespace CGL {
         }
     }
 
-    inline float side(float x, float y, float x0, float y0, float x1, float y1) {
-        return (x - x1) * (y0 - y1) - (y - y1) * (x0 - x1);
-    }
-
-    bool point_in_triangle(float x, float y,
-                           float x0, float y0,
-                           float x1, float y1,
-                           float x2, float y2) {
-        float d0 = side(x, y, x0, y0, x1, y1);
-        float d1 = side(x, y, x1, y1, x2, y2);
-        float d2 = side(x, y, x2, y2, x0, y0);
-        return (d0 >= 0 && d1 >= 0 && d2 >= 0) || (d0 <= 0 && d1 <= 0 && d2 <= 0);
-    }
-
     /**
      * Returns the barycentric coordinate of point (x, y) w.r.t. vertex
      * (x0, y0) and side (x1, y1) - (x2, y2).
      * */
     inline float bary(float x, float y, float x0, float y0, float x1, float y1, float x2, float y2) {
         return (-(x - x1) * (y2 - y1) + (y - y1) * (x2 - x1)) / (-(x0 - x1) * (y2 - y1) + (y0 - y1) * (x2 - x1));
+    }
+
+    bool point_in_triangle(float x, float y, float x0, float y0, float x1, float y1, float x2, float y2) {
+        float a = bary(x, y, x0, y0, x1, y1, x2, y2);
+        float b = bary(x, y, x1, y1, x2, y2, x0, y0);
+        float c = 1 - a - b;
+        return (a >= 0 && b >=0 && c >=0) || (a <= 0 && b <=0 && c <=0);
     }
 
     // Rasterize a triangle.
@@ -561,8 +554,17 @@ namespace CGL {
         auto n_sub_pixel = (int) sqrt(sample_rate);
         float sub_pixel_size = 1.0f / n_sub_pixel;
 
-        for (int y = 0; y < samplebuffer.size(); y++)
-            for (int x = 0; x < samplebuffer[y].size(); x++)
+        // bounding box of the triangle
+        auto b_x0 = (long) floor(min(min(x0, x1), x2)), b_y0 = (long) floor(min(min(y0, y1), y2));
+        auto b_x1 = (long) ceil(max(max(x0, x1), x2)), b_y1 = (long) ceil(max(max(y0, y1), y2));
+        b_x0 = max(b_x0, 0l);
+        b_y0 = max(b_y0, 0l);
+        b_x1 = min(b_x1, (long) samplebuffer[0].size());
+        b_y1 = min(b_y1, (long) samplebuffer.size());
+
+        #pragma omp for
+        for (long y = b_y0; y < b_y1; y++)
+            for (long x = b_x0; x < b_x1; x++)
                 for (int j = 0; j < n_sub_pixel; j++)
                     for (int i = 0; i < n_sub_pixel; i++)
                         // Note that the coordinate of the triangles are (column, row)
@@ -573,13 +575,18 @@ namespace CGL {
                                 p_bary[0] = bary(x, y, x0, y0, x1, y1, x2, y2);
                                 p_bary[1] = bary(x, y, x1, y1, x2, y2, x0, y0);
                                 p_bary[2] = 1 - p_bary[0] - p_bary[1];
-                                color = tri->color(p_bary);
+
+                                SampleParams sp;
+                                sp.lsm = lsm;
+                                sp.psm = psm;
+
+                                color = tri->color(p_bary, Vector3D(), Vector3D(), sp);
                             }
                             samplebuffer[y][x].fill_color(i, j, color);
                         }
 
         t = clock() - t;
-        printf("Time used with %dx%d super-sampling: %fs\n", n_sub_pixel, n_sub_pixel, ((float) t) / CLOCKS_PER_SEC);
+//        printf("Time used with %dx%d super-sampling: %fs\n", n_sub_pixel, n_sub_pixel, ((float) t) / CLOCKS_PER_SEC);
     }
 
 
