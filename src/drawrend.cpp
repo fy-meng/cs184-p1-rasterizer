@@ -573,7 +573,7 @@ namespace CGL {
                                 p_bary[0] = bary(x, y, x0, y0, x1, y1, x2, y2);
                                 p_bary[1] = bary(x, y, x1, y1, x2, y2, x0, y0);
                                 p_bary[2] = 1 - p_bary[0] - p_bary[1];
-                                color = tri->color(p_bary, NULL, NULL, SampleParams());
+                                color = tri->color(p_bary);
                             }
                             samplebuffer[y][x].fill_color(i, j, color);
                         }
