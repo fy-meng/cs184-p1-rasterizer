@@ -5,49 +5,76 @@
 #include <algorithm>
 
 namespace CGL {
+    // Returns the linear interpolation for scale x between colors c0 and c1
+    inline Color lerp(float x, Color c0, Color c1) {
+        return (1 - x) * c0 + x * c1;
+    }
+
+    Color (Texture::*sample_func)(Vector2D, int) = NULL;
 
     Color Texture::sample(const SampleParams &sp) {
         // Parts 5 and 6: Fill this in.
         // Should return a color sampled based on the psm and lsm parameters given
-        if (sp.psm == P_NEAREST)
-            return sample_nearest(sp.p_uv, (int) round(get_level(sp)));
-        else if (sp.psm == P_LINEAR)
-            return sample_bilinear(sp.p_uv, (int) round(get_level(sp)));
-        else {
-            perror("Wrong pixel sampling method argument");
-            return {};
+        switch (sp.psm) {
+            case P_NEAREST:
+                sample_func = &Texture::sample_nearest;
+                break;
+            case P_LINEAR:
+                sample_func = &Texture::sample_bilinear;
+                break;
+            default:
+                perror("Wrong pixel sampling method argument");
+                return {};
+        }
+
+        if (sp.lsm == L_LINEAR) {
+            float level = get_level(sp);
+            auto level_lo = (int) floor(level);
+            auto level_hi = (int) ceil(level);
+            Color sample_lo = (this->*sample_func)(sp.p_uv, level_lo);
+            Color sample_hi = (this->*sample_func)(sp.p_uv, level_hi);
+            return lerp(level - level_lo, sample_lo, sample_hi);
+        } else {
+            return (this->*sample_func)(sp.p_uv, (int) get_level(sp));
         }
     }
 
     float Texture::get_level(const SampleParams &sp) {
         // Optional helper function for Parts 5 and 6
-        return 0;
+        float du = (float) (sp.p_dx_uv[0] - sp.p_uv[0]) * width;
+        float dv = (float) (sp.p_dy_uv[1] - sp.p_uv[1]) * height;
+        switch (sp.lsm) {
+            case L_ZERO:
+                return 0;
+            case L_NEAREST:
+                return max(0.0f, round(log2(sqrt(du * du + dv * dv))));
+            case L_LINEAR:
+                return max(0.0f, log2(sqrt(du * du + dv * dv)));
+            default:
+                perror("Wrong level sampling method argument");
+                return 0;
+        }
     }
 
     // Returns the nearest sample given a particular level and set of uv coords
     Color Texture::sample_nearest(Vector2D uv, int level) {
         // Optional helper function for Parts 5 and 6
         // Feel free to ignore or create your own
-        int u = (int) round(uv[0] * width), v = (int) round(uv[1] * height);
+        int u = (int) round(uv[0] * width / pow(2, level)), v = (int) round(uv[1] * height / pow(2, level));
         return mipmap[level].get_texel(u, v);
-    }
-
-    // Returns the linear interpolation for scale x between colors c0 and c1
-    inline Color lerp(float x, Color c0, Color c1) {
-        return (1 - x) * c0 + x * c1;
     }
 
     // Returns the bilinear sample given a particular level and set of uv coords
     Color Texture::sample_bilinear(Vector2D uv, int level) {
         // Optional helper function for Parts 5 and 6
         // Feel free to ignore or create your own
-        int u0 = (int) floor(uv[0] * width), v0 = (int) floor(uv[1] * height);
-        int u1 = (int) ceil(uv[0] * width), v1 = (int) ceil(uv[1] * height);
+        int u0 = (int) floor(uv[0] * width / pow(2, level)), v0 = (int) floor(uv[1] * height / pow(2, level));
+        int u1 = (int) ceil(uv[0] * width / pow(2, level)), v1 = (int) ceil(uv[1] * height / pow(2, level));
         Color c00 = mipmap[level].get_texel(u0, v0), c01 = mipmap[level].get_texel(u0, v1);
         Color c10 = mipmap[level].get_texel(u1, v0), c11 = mipmap[level].get_texel(u1, v1);
-        Color c0 = lerp((float) (uv[1] * height - v0), c00, c01);
-        Color c1 = lerp((float) (uv[1] * height - v0), c10, c11);
-        return lerp((float) (uv[0] * width - u0), c0, c1);
+        Color c0 = lerp((float) (uv[1] * height / pow(2, level) - v0), c00, c01);
+        Color c1 = lerp((float) (uv[1] * height / pow(2, level) - v0), c10, c11);
+        return lerp((float) (uv[0] * width / pow(2, level) - u0), c0, c1);
     }
 
 

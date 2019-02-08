@@ -523,6 +523,18 @@ namespace CGL {
         return (-(x - x1) * (y2 - y1) + (y - y1) * (x2 - x1)) / (-(x0 - x1) * (y2 - y1) + (y0 - y1) * (x2 - x1));
     }
 
+    /**
+     * Returns the 3-D barycentric coordinate of point (x, y) w.r.t. triangle
+     * (x0, y0), (x1, y1), (x2, y2).
+     */
+    Vector3D bary_coord(float x, float y, float x0, float y0, float x1, float y1, float x2, float y2) {
+        Vector3D p_bary = Vector3D();
+        p_bary[0] = bary(x, y, x0, y0, x1, y1, x2, y2);
+        p_bary[1] = bary(x, y, x1, y1, x2, y2, x0, y0);
+        p_bary[2] = 1 - p_bary[0] - p_bary[1];
+        return p_bary;
+    }
+
     bool point_in_triangle(float x, float y, float x0, float y0, float x1, float y1, float x2, float y2) {
         float a = bary(x, y, x0, y0, x1, y1, x2, y2);
         float b = bary(x, y, x1, y1, x2, y2, x0, y0);
@@ -571,16 +583,13 @@ namespace CGL {
                         if (point_in_triangle(x + (i + 0.5f) * sub_pixel_size, y + (j + 0.5f) * sub_pixel_size,
                                               x0, y0, x1, y1, x2, y2)) {
                             if (tri) {
-                                Vector3D p_bary = Vector3D();
-                                p_bary[0] = bary(x, y, x0, y0, x1, y1, x2, y2);
-                                p_bary[1] = bary(x, y, x1, y1, x2, y2, x0, y0);
-                                p_bary[2] = 1 - p_bary[0] - p_bary[1];
-
                                 SampleParams sp;
                                 sp.lsm = lsm;
                                 sp.psm = psm;
 
-                                color = tri->color(p_bary, Vector3D(), Vector3D(), sp);
+                                color = tri->color(bary_coord(x, y, x0, y0, x1, y1, x2, y2),
+                                                   bary_coord(x + 1, y, x0, y0, x1, y1, x2, y2),
+                                                   bary_coord(x, y + 1, x0, y0, x1, y1, x2, y2), sp);
                             }
                             samplebuffer[y][x].fill_color(i, j, color);
                         }
