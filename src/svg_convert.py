@@ -20,7 +20,7 @@ def scaling(match, scale):
 
 
 def convert(filename):
-    with open('svg/custom/' + filename + '.svg', 'r') as f:
+    with open('svg/competition/' + filename + '.svg', 'r') as f:
         s = f.read()
 
         s = re.sub(rgb_pattern, str2hex, s)
@@ -35,7 +35,7 @@ def convert(filename):
         s = re.sub(width_pattern, lambda match: 'width="{}px"'.format(str(int(match.group(1)) * scale)), s)
         s = re.sub(height_pattern, lambda match: 'height="{}px"'.format(str(int(match.group(1)) * scale)), s)
 
-    with open('svg/custom/' + filename + '_new.svg', 'w+') as f_new:
+    with open('svg/competition/' + filename + '_new.svg', 'w+') as f_new:
         f_new.write(s)
 
 
