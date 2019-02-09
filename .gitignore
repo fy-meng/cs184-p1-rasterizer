@@ -2,3 +2,5 @@
 build/
 src2/
 *~
+.idea
+cmake-build-debug
